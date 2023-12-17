@@ -1,4 +1,3 @@
-"# HotStuff_project" 
 HotStuff introduced in Yin et al. (2018) is a byzantine fault tolerant system
 protocol that is used to achieve consensus between the nodes of a distributed
 system. Usually, implementations involve network communication among distributed nodes, which introduces significant implementation complexity. This
