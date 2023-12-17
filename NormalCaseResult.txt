@@ -1,0 +1,192 @@
+Replica 0 started.
+Replica 1 started.Leader: 0
+
+Replica 2 started.
+Replica 3 started.
+T1
+Primary has got a view change request.
+Broadcasting Message : Sender ID : R0 Type : PREPARE to Replica : 1 Content : 1T1
+ has validated the PREPARE request
+Broadcasting Message : Sender ID : 0 Type : PREPARE to Replica : 2 Content : T1
+Broadcasting Message : Sender ID : 0 Type : PREPARER to Replica : 3 has validated the PREPARE request
+R2 has validated the PREPARE request
+3 Content : T1
+Popped Message from Leader Queue MSG Content : T1Sender ID : 3
+Popped Message from Leader Queue MSG Content : T1Sender ID : 1
+Popped Message from Leader Queue MSG Content : T1Sender ID : 2
+Broadcasting Message : Sender ID : 0 Type : PRE_COMMIT to Replica : R1 has validated the PRE_COMMIT request
+1 Content : T1
+Broadcasting Message : Sender ID : 0 Type : R2 has validated the PRE_COMMIT request
+PRE_COMMIT to Replica : 2 Content : T1
+Broadcasting Message : Sender ID : R3 has validated the PRE_COMMIT request
+0 Type : PRE_COMMIT to Replica : 3 Content : T1
+Popped Message from Leader Queue MSG Content : T1Sender ID : 1
+Popped Message from Leader Queue MSG Content : T1Sender ID : 2
+Popped Message from Leader Queue MSG Content : T1Sender ID : 3
+Primary has validated PRE-COMMIT requests.
+Broadcasting Message : Sender ID : 0 Type : COMMIT to Replica : 1 Content : T1
+Broadcasting Message : Sender ID : 0 Type : COMMIT to Replica : R2 Content : 2T1 has validated the COMMIT request
+Broadcasting Message : Sender ID : 0 Type : COMMIT to Replica : R3 Content : 3R1 has validated the COMMIT request
+ has validated the COMMIT request
+T1
+Popped Message from Leader Queue MSG Content : T1Sender ID : 1
+Popped Message from Leader Queue MSG Content : T1Sender ID : 3
+
+Popped Message from Leader Queue MSG Content : T1Sender ID : 2
+Primary has validated COMMIT requests.
+Broadcasting Message : Sender ID : 0 Type : DECIDE to Replica : 1 Content : T1
+Broadcasting Message : Sender ID : 0 Type : DECIDE to Replica : 2 Content : T1
+Broadcasting Message : Sender ID : R0 Type : RR1 has validated the DECIDE request
+Transaction is executed on R1
+Leader: 1
+T1
+Popped Message from Leader Queue MSG Content : NEW_VIEWSender ID : 1
+DECIDE to Replica : 3 Content : T1
+2 has validated the DECIDE request3 has validated the DECIDE request
+Transaction is executed on R3
+
+Transaction is executed on R2
+Popped Message from Leader Queue MSG Content : NEW_VIEWSender ID : 3
+Popped Message from Leader Queue MSG Content : NEW_VIEWSender ID : 2
+Primary has got a view change request.
+Broadcasting Message : Sender ID : 1 Type : PREPARE to Replica : 0 Content : T2
+Broadcasting Message : Sender ID : 1 Type : PREPARE to Replica : 2 Content : T2
+Broadcasting Message : Sender ID : 1 Type : PREPARE to Replica : 3 Content : T2
+R0 has validated the PREPARE request
+R3 has validated the PREPARE request
+R2 has validated the PREPARE request
+Popped Message from Leader Queue MSG Content : T2Sender ID : 0
+Popped Message from Leader Queue MSG Content : T2Sender ID : 3
+Popped Message from Leader Queue MSG Content : T2Sender ID : 2
+Broadcasting Message : Sender ID : 1 Type : PRE_COMMIT to Replica : 0 Content : T2
+Broadcasting Message : Sender ID : 1 Type : PRE_COMMIT to Replica : 2 Content : T2
+Broadcasting Message : Sender ID : 1 Type : PRE_COMMIT to Replica : R3 has validated the PRE_COMMIT request
+3 Content : T2
+R2 has validated the PRE_COMMIT request
+R0 has validated the PRE_COMMIT request
+Popped Message from Leader Queue MSG Content : T2Sender ID : 2
+Popped Message from Leader Queue MSG Content : T2Sender ID : 3
+Popped Message from Leader Queue MSG Content : T2Sender ID : 0
+Primary has validated PRE-COMMIT requests.
+Broadcasting Message : Sender ID : 1 Type : COMMIT to Replica : 0 Content : T2
+Broadcasting Message : Sender ID : 1 Type : COMMIT to Replica : R2 Content : T2
+Broadcasting Message : Sender ID : 1 Type : COMMIT to Replica : 3 Content : T2
+R2 has validated the COMMIT request
+R3 has validated the COMMIT request
+0 has validated the COMMIT request
+Popped Message from Leader Queue MSG Content : T2Sender ID : 2
+Popped Message from Leader Queue MSG Content : T2Sender ID : 3
+Popped Message from Leader Queue MSG Content : T2Sender ID : 0
+Primary has validated COMMIT requests.
+Broadcasting Message : Sender ID : 1 Type : DECIDE to Replica : 0 Content : T2
+Broadcasting Message : Sender ID : 1 Type : DECIDE to Replica : 2RR Content : T2
+Broadcasting Message : Sender ID : 01 Type :  has validated the DECIDE request
+Transaction is executed on R0
+DECIDE to Replica : 23 Content :  has validated the DECIDE requestT2
+R3 has validated the DECIDE request
+Transaction is executed on R3
+
+Transaction is executed on R2
+Leader: 2
+T2
+Popped Message from Leader Queue MSG Content : NEW_VIEWSender ID : 0
+Popped Message from Leader Queue MSG Content : NEW_VIEWSender ID : 3
+Popped Message from Leader Queue MSG Content : NEW_VIEWSender ID : 2
+Primary has got a view change request.
+Broadcasting Message : Sender ID : 2 Type : PREPARE to Replica : R0 Content : 0T3
+Broadcasting Message : Sender ID : 2 Type : PREPARE to Replica : 1 Content : RT3
+Broadcasting Message : Sender ID : R3 has validated the PREPARE request
+2 Type : PREPARE to Replica : 3 Content : T3
+Popped Message from Leader Queue MSG Content : T3Sender ID : 3
+ has validated the PREPARE request
+1 has validated the PREPARE request
+Popped Message from Leader Queue MSG Content : T3Sender ID : 0
+Popped Message from Leader Queue MSG Content : T3Sender ID : 1
+Broadcasting Message : Sender ID : 2 Type : PRE_COMMIT to Replica : 0 Content : T3
+Broadcasting Message : Sender ID : 2 Type : PRE_COMMIT to Replica : 1 Content : T3
+Broadcasting Message : Sender ID : 2 Type : RR3 has validated the PRE_COMMIT request
+R1 has validated the PRE_COMMIT request
+0PRE_COMMIT has validated the PRE_COMMIT request
+ to Replica : 3 Content : T3
+Popped Message from Leader Queue MSG Content : T3Sender ID : 3
+Popped Message from Leader Queue MSG Content : T3Sender ID : 1
+Popped Message from Leader Queue MSG Content : T3Sender ID : 0
+Primary has validated PRE-COMMIT requests.
+Broadcasting Message : Sender ID : 2 Type : COMMIT to Replica : 0 Content : T3R
+Broadcasting Message : Sender ID : 2 Type : COMMIT to Replica : 1 Content : T3
+Broadcasting Message : Sender ID : R3 has validated the COMMIT request
+2 Type : COMMIT to Replica : 3 Content : T3
+Popped Message from Leader Queue MSG Content : T3Sender ID : 3
+R1 has validated the COMMIT request
+0 has validated the COMMIT request
+Popped Message from Leader Queue MSG Content : T3Sender ID : 1
+Popped Message from Leader Queue MSG Content : T3Sender ID : 0
+Primary has validated COMMIT requests.
+Broadcasting Message : Sender ID : 2 Type : DECIDE to Replica : 0 Content : T3
+Broadcasting Message : Sender ID : RR1 has validated the DECIDE request
+Transaction is executed on R1
+R3 has validated the DECIDE request
+Transaction is executed on R3
+Leader: 3
+T3
+Popped Message from Leader Queue MSG Content : NEW VIEWSender ID : 3
+Primary has got a view change request.
+Broadcasting Message : Sender ID : 3 Type : PREPARE to Replica : 0 Content : T4
+Broadcasting Message : Sender ID : 3 Type : PREPARE to Replica : 1R Content : T41 has validated the PREPARE request
+
+Broadcasting Message : Sender ID : 3 Type : PREPARE to Replica : 2 Content : T4
+Popped Message from Leader Queue MSG Content : NEW_VIEWSender ID : 3
+Popped Message from Leader Queue MSG Content : T4Sender ID : 1
+02 Type : DECIDE to Replica : 1 Content : T3
+Broadcasting Message : Sender ID : 2 Type : DECIDE to Replica :  has validated the DECIDE request3 Content : 
+Transaction is executed on R0
+R0 has validated the PREPARE request
+T3
+R2 has validated the PREPARE request
+Popped Message from Leader Queue MSG Content : T3Sender ID : 2
+Broadcasting Message : Sender ID : 3 Type : PRE_COMMIT to Replica : 0 Content : T4
+Broadcasting Message : Sender ID : R13 has validated the PRE_COMMIT request
+ Type : PRE_COMMIT to Replica : 1 Content : T4
+Broadcasting Message : Sender ID : 3 Type : PRE_COMMIT to Replica : 2 Content : T4
+Popped Message from Leader Queue MSG Content : NEW_VIEWSender ID : 0
+Popped Message from Leader Queue MSG Content : T4Sender ID : 0
+RPrimary has validated PRE-COMMIT requests.
+Broadcasting Message : Sender ID : 3 Type : COMMIT to Replica : 0 Content : T4
+Broadcasting Message : Sender ID : 3 Type : COMMIT to Replica : 1 Content : RT4
+Broadcasting Message : Sender ID : 3 Type : COMMIT to Replica : 2 Content : T4
+Popped Message from Leader Queue MSG Content : T4Sender ID : 2
+Primary has validated COMMIT requests.
+1 has validated the COMMIT requestRBroadcasting Message : Sender ID : 3 Type : DECIDE to Replica : 0 Content : T4
+Broadcasting Message : Sender ID : 30 has validated the PRE_COMMIT request
+R Type : 0 has validated the COMMIT request
+
+R0 has validated the DECIDE request
+Transaction is executed on R0
+Leader: 0
+2 has validated the PRE_COMMIT request
+R2 has validated the COMMIT request
+T4
+Popped Message from Leader Queue MSG Content : NEW_VIEWSender ID : 0
+DECIDE to Replica : R1 has validated the DECIDE request
+Transaction is executed on R1
+1 Content : T4
+Broadcasting Message : Sender ID : 3 Type : RDECIDE to Replica : 22 Content : T4
+ has validated the DECIDE request
+Transaction is executed on R2
+Broadcasting Message : Sender ID : 3 Type : UNKNOWN to Replica : 0 Content : NEW_VIEW
+Broadcasting Message : Sender ID : 3 Type : UNKNOWN to Replica : R1 Content : NEW_VIEW
+Broadcasting Message : Sender ID : 3 Type : UNKNOWN to Replica : 2R21 has validated the PREPARE request Content : 
+R1 has validated the PRE_COMMIT request
+R1 has validated the COMMIT request
+R1 has validated the DECIDE request
+Transaction is executed on R1
+Leader: 1
+T4
+Popped Message from Leader Queue MSG Content : NEW VIEWSender ID : 1
+ has validated the PREPARE request
+NEW_VIEW
+Broadcasting Message : Sender ID : 3 Type : UNKNOWN to Replica : 3 Content : NEW_VIEW
+R3 has validated the PREPARE request
+R2 has validated the PRE_COMMIT request
+Popped Message from Leader Queue MSG Content : NEW_VIEWSender ID : 1
+Popped Message from Leader Queue MSG Content : NEW_VIEWSender ID : 3
