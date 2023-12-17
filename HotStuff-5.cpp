@@ -1,7 +1,7 @@
-//Test
-//Test
+#define JELLE_SAID_NO 0  // this is false, so we can use #if JELLE_SAID to exclude old parts I changed :)
 
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <vector>
 #include <queue>
@@ -9,9 +9,6 @@
 #include <mutex>
 #include <condition_variable>
 #include <string>
-#include <atomic>
-#include <unordered_map>
-#include <cstdlib> // For std::rand()
 #include <ctime>   // For std::time()
 std::mutex console_mutex; 
 
@@ -19,23 +16,39 @@ void safe_prints(const std::string& message) {
     std::lock_guard<std::mutex> guard(console_mutex);
     std::cout << message << std::endl;
 }
-
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const std::optional<T>& opt) {
+    if (opt) {
+        os << *opt; // Print the value if it exists
+    } else {
+        os << "nullopt"; // Or a placeholder if it doesn't
+    }
+    return os;
+}
 template<typename SeparatorType, class... Ts>
 void safe_print(const SeparatorType& sep, const Ts&... args) {
     std::ostringstream stream;
     const char* delim = "";
-    (..., (stream << delim << args, delim = sep));
+    ((stream << delim << args, delim = sep), ...); // Modified fold expression
     safe_prints(stream.str());
 }
 // Define a structure for messages
 struct message {
-    enum class type { PROPOSE, VOTE, PRE_COMMIT, PRE_COMMIT_VOTE, COMMIT, COMMIT_VOTE, DECIDE, RESPONSE, STOP, NEW_VIEW, SYNC };
-    type msg_type;
-    std::string content;
-    size_t sender_id;
+    enum class type {
+        PREPARE, VOTE,
+        PRE_COMMIT, PRE_COMMIT_VOTE,
+        COMMIT, COMMIT_VOTE,
+        DECIDE, RESPONSE,
+        STOP, NEW_VIEW, SYNC
+    };
 
-    message(type mt, const std::string& cont, size_t sender)
-        : msg_type(mt), content(cont), sender_id(sender) {}
+    type msg_type;
+    std::optional<std::string> content;
+    std::size_t sender_id;
+    std::size_t view_number;
+
+    message(type msg_type, const std::optional<std::string>& content, std::size_t sender_id, std::size_t view_number)
+        : msg_type(msg_type), content(content), sender_id(sender_id), view_number(view_number) {}
 };
 
 // Define a class for message_queue
@@ -44,46 +57,143 @@ class message_queue {
     std::mutex mutex;
     std::condition_variable cond_var;
 
-    public:
-        void add_to_queue(const message& msg) {
-            std::lock_guard<std::mutex> lock(mutex);
-            queue.push(msg);
-            cond_var.notify_one();
-        }
+public:
+    void add_to_queue(const message& msg)
+    {
+        //std::lock_guard<std::mutex> lock(mutex);
+        queue.push(msg);
+        //cond_var.notify_one();
+    }
 
-        message pop_from_queue() {
-        std::unique_lock<std::mutex> lock(mutex);
-        while (queue.empty()) {
-             cond_var.wait(lock);
-        }
+    message pop_from_queue()
+    {
+        //std::unique_lock<std::mutex> lock(mutex);
+        //while (queue.empty()) {
+        //cond_var.wait(lock);
+            
+        //}
         message msg = queue.front();
         queue.pop();
         return msg;
     }
+    
+    bool empty() const {
+        return queue.empty();
+    }
+};
+ //Client Queue is created.
+class client_queue {
+    std::queue<std::string> queue; // Queue to store client requests as strings
+    std::mutex mutex;
+    std::condition_variable cond_var;
+
+public:
+    void add_to_queue(const std::string& request) {
+        std::lock_guard<std::mutex> lock(mutex);
+        queue.push(request);
+        cond_var.notify_one();
+    }
+
+    std::optional<std::string> pop_from_queue() {
+        std::unique_lock<std::mutex> lock(mutex);
+        if (queue.empty()) {
+            return std::nullopt; // Return an empty optional if the queue is empty
+        }
+        std::string request = queue.front();
+        queue.pop();
+        return request; // Return the popped value wrapped in an optional
+    }
+
+    bool empty() const {
+        return queue.empty();
+    }
+
+    std::optional<std::string> front_of_queue() {
+        if (queue.empty()) {
+            return std::nullopt; // Return an empty optional if the queue is empty
+        }
+        std::string request = queue.front();
+        return request; // Return the popped value wrapped in an optional
+    }
+
 };
 
-// Define the network_layer as a vector of message_queue pointers
-using network_layer = std::vector<std::shared_ptr<message_queue>>;
 
-// Helper function to convert message type to string
-std::string message_type_to_string(message::type msg_type) {
+// Define the network_layer as a vector of message_queue pointers
+using network_layer = std::vector<message_queue>;
+client_queue global_client_queue;
+
+
+/*
+ * Return a string literal representation for the message type @{msg_type}.
+ */
+std::string_view to_string(message::type msg_type)
+{
+    //using enum message::type;
     switch (msg_type) {
-        case message::type::PROPOSE: return "PROPOSE";
-        case message::type::VOTE: return "VOTE";
-        case message::type::PRE_COMMIT: return "PRE_COMMIT";
-        case message::type::PRE_COMMIT_VOTE: return "PRE_COMMIT_VOTE";
-        case message::type::COMMIT: return "COMMIT";
-        case message::type::COMMIT_VOTE: return "_VOTE";
-        case message::type::DECIDE: return "DECIDE";
-        case message::type::RESPONSE: return "RESPONSE";
-        case message::type::STOP: return "STOP";
-        default: return "UNKNOWN";
+        case message::type::PREPARE:
+            return "PREPARE";
+        case message::type::VOTE:
+            return "VOTE";
+        case message::type::PRE_COMMIT:
+            return "PRE_COMMIT";
+        case message::type::PRE_COMMIT_VOTE:
+            return "PRE_COMMIT_VOTE";
+        case message::type::COMMIT:
+            return "COMMIT";
+        case message::type::COMMIT_VOTE:
+            return "COMMIT_VOTE";
+        case message::type::DECIDE:
+            return "DECIDE";
+        case message::type::RESPONSE:
+            return "RESPONSE";
+        case message::type::STOP:
+            return "STOP";
+        default:
+            /* This should not happen? Should we detect that? */
+            // assert(false)
+            return "UNKNOWN";
     }
 }
 
-class Replica {
-public:
-    enum State {
+/*
+ * Write the message type @{msg_type} to output.
+ */
+std::ostream& operator<<(std::ostream& out, message::type msg_type)
+{
+    return out << to_string(msg_type);
+}
+
+
+/*
+ * struct Replica represents the internal state of the replica right?
+ *
+ * Then why not something like this:
+ */
+#if 0 // so that the compiler ignores it
+struct replica_state
+{
+    /* Identifier of this replica, never changes. */
+    const std::size_t replica_id;
+
+    /* The current round number. */
+    std::size_t round_number; 
+
+    /* The current state of this replica in round @{round}/ */
+    state round_state;
+    
+    /* Messages proposed & accepted in previous rounds. */
+    std::vector<message> ledger;
+};
+#endif
+
+/*
+ * Instead of the following.
+ */
+
+struct Replica {
+    /* Lets make this an enum class. */
+    enum class State {
         IDLE,
         PROPOSED,        // Initial state, waiting for proposal
         PREPARED,    // Has received a proposal and sent a vote
@@ -91,307 +201,463 @@ public:
         COMMITTED,   // Has received a pre-commit and sent a commit vote
         DECIDED, // Has received enough commit votes to decide
         LOCKED,
-		SYNCING,
-		VIEW_CHANGE
+        SYNCING,
+        VIEW_CHANGE
     };
 
-	State state;
-	std::string value;          // The value being proposed/committed/etc.
-	std::atomic<int> votes;     // Count of votes received (for the leader)
-	std::atomic<int> commit_votes; // Count of commit votes received (for the leader)
-	bool is_leader;             // Indicates whether this replica is the current leader
-	std::size_t leader_id;      // The ID of the current leader
-    // Constructor
-	Replica() : state(IDLE), votes(0), commit_votes(0), is_leader(false), leader_id(0) {}
+    State state;
+    std::string value;          // The value being proposed/committed/etc.
+
+    std::atomic<int> votes = {0};
+    std::atomic<int> pre_commit_votes = {0}; 
+    std::atomic<int> commit_votes = {0}; 
+    
+    bool is_leader = false;             
+    std::size_t replica_id;     
+    std::size_t round_number = -1;
 };
 
 // Helper function to send a message to all replicas except the sender
 void broadcast_message(network_layer& network, const message& msg) {
-	std::string msg_type_str = message_type_to_string(msg.msg_type);
+    for (size_t i = 0; i < network.size(); ++i) {
+        if (i != msg.sender_id) { //Not including itself
+            network[i].add_to_queue(msg);
 
-	for (size_t i = 0; i < network.size(); ++i) {
-		if (i != msg.sender_id) {
-			network[i]->add_to_queue(msg);
-			// Synchronized print for sent message
-			// safe_print("Replica " + std::to_string(msg.sender_id) + " sent a " +
-			//            msg_type_str + " message to Replica " + std::to_string(i) +
-			//            ": " + msg.content);
-			safe_print("Replica ", msg.sender_id, " sent a " ,
-					   msg_type_str , " message to Replica ",  i ,
-					   ": " , msg.content);
-		}
-	}
-}
-
-// The function that each bad replica will run
-void replica_thread_function_evil_behaved(std::size_t replica_id, network_layer& network, std::size_t l_id) {
-    Replica replica;
-    std::srand(static_cast<unsigned int>(std::time(nullptr))); // Seed the random number generator
-	safe_print("Evil Replica " , replica_id, " started.");
-
-    while (true) {
-        message msg = network[replica_id]->pop_from_queue();
-
-        // Synchronized print for received message
-        safe_print("Evil Replica " , replica_id, " received a " ,
-				   message_type_to_string(msg.msg_type) + " message from Replica " , msg.sender_id, ": " , msg.content);
-
-        // Decide randomly whether to behave incorrectly or not
-		if (std::rand() % 2) { // 50% chance to misbehave
-            // Misbehave by broadcasting a wrong message or not broadcasting at all
-			if (std::rand() % 2) {
-                // Send a conflicting message
-                message fake_msg(message::type::VOTE, "FakeContent", replica_id);
-                network[replica.leader_id]->add_to_queue(fake_msg);
-            }
-			// Otherwise, do nothing (simulating a drop)
-        } else {
-            // Behave correctly (relay the message)
-            //broadcast_message(network, msg);
-            message vote_msg(message::type::VOTE, msg.content, replica_id);
-            network[replica.leader_id]->add_to_queue(vote_msg);
-        }
-
-        if (msg.msg_type == message::type::STOP) {
-            return; // Exit the loop and terminate the thread
+            // Synchronized print for sent message
+            // safe_print("Replica " + std::to_string(msg.sender_id) + " sent a " +
+            //            msg_type_str + " message to Replica " + std::to_string(i) +
+            //            ": " + msg.content);
+            //safe_print("Replica ", msg.sender_id, " sent a " ,
+            //           msg.msg_type , " message to Replica ",  i ,
+            //           ": " , msg.content);
+            std::cout << "Broadcasting Message : Sender ID : " << msg.sender_id << " Type : " << msg.msg_type << " to Replica : " << i << " Content : " << msg.content << std::endl;
         }
     }
 }
+
 void handle_unknown_message(const message& msg, std::size_t replica_id) {
     // Log the receipt of an unknown message
-	safe_print("Replica ", replica_id, " received an unknown message of type: ", message_type_to_string(msg.msg_type));
+    safe_print("Replica ", replica_id, " received an unknown message of type: ", msg.msg_type);
 }
-void start_new_view(Replica& replica, network_layer& network, std::size_t replica_id, const std::string& new_leader_id) {
+
+void start_new_view(Replica& replica, network_layer& network, std::size_t replica_id, std::size_t round_number)
+{
+    std::size_t new_leader_id = round_number % network.size();
+    safe_print("New View started!");
+    /* the new_leader_id should be a number here---lets not mix ``interpreting message'' and updating internal state. */
+
     // Start a new view, usually when the current leader is suspected to be faulty.
 
-    // Set the state to VIEW_CHANGE
-    {
-        std::lock_guard<std::mutex> guard(console_mutex);
-		replica.state = Replica::VIEW_CHANGE;
-		replica.leader_id = std::stoull(new_leader_id);
-        replica.is_leader = (replica_id == replica.leader_id);
-        replica.votes = 0;
-        replica.commit_votes = 0;
-    }
+    
+    #if JELLE_SAID_NO
+        std::lock_guard<std::mutex> guard(console_mutex); /// ????
+    
+        /* If you need a lock here for some reason, then use a purpose-specific lock. *//
+    #endif
+    
+    
+    // replica.state = Replica::State::VIEW_CHANGE;
+    //replica.replica_id = new_leader_id;
+
+    replica.is_leader = (replica_id == new_leader_id);
+    replica.votes = 0;
+    replica.commit_votes = 0;
 
     // Log the start of a new view
-    safe_print("Replica ", replica_id, " starting new view with leader ", new_leader_id);
+    //safe_print("Replica ", replica_id, " starting new view with leader ", new_leader_id);
 }
 
-void sync_with_network(Replica& replica, network_layer& network, std::size_t replica_id) {
-    // This function would typically involve a request to a distributed log or
-    // state machine to get the latest committed value.
-    // For the purpose of this example, it is a placeholder.
-
-    // Placeholder for the actual committed value retrieved from the network or log.
-    std::string latest_committed_value = "LatestCommittedValue";
-
-    // Update the replica's state to match the latest committed state
-    {
-        std::lock_guard<std::mutex> guard(console_mutex);
-        replica.state = Replica::IDLE;
-        replica.value = latest_committed_value;
-        replica.votes = 0;
-        replica.commit_votes = 0;
-    }
-
-    // Log the synchronization for debugging purposes
-    safe_print("Replica ", replica_id, " synchronized with the network: ", latest_committed_value);
-}
 
 void end_of_round(Replica& replica, std::size_t replica_id) {
     // Reset the replica's state at the end of a consensus round
-    {
-        std::lock_guard<std::mutex> guard(console_mutex);
-        replica.state = Replica::IDLE;
-        replica.votes = 0;
-        replica.commit_votes = 0;
-    }
+    #if JELLE_SAID_NO
+        std::lock_guard<std::mutex> guard(console_mutex); /// ????
+    
+        /* If you need a lock here for some reason, then use a purpose-specific lock. *//
+    #endif
+
+    
+    replica.state = Replica::State::IDLE;
+    replica.votes = 0;
+    replica.commit_votes = 0;
 
     // Log the end of a round
-    safe_print("Replica ", replica_id, " has ended the round and is now IDLE.");
+    //safe_print("Replica ", replica_id, " has ended the round and is now IDLE.");
 }
-// The function that each good replica thread will run
-void replica_thread_function_well_behaved(std::size_t replica_id, network_layer& network, std::size_t l_id ) {
-    // std::unordered_map<std::string, int> pre_votes_count;
-    // std::unordered_map<std::string, int> pre_commits_count;
+
+
+class ConsensusCertificate {
+public:
+    std::vector<message> messages;
+
+    ConsensusCertificate(const std::vector<message>& messages) : messages(messages) {}
+    ConsensusCertificate() {}
+
+    bool is_valid() const {
+        // Implement logic to validate the certificate
+        return !messages.empty(); // Simplified check
+    }
+};
+
+ConsensusCertificate receive_certificate(network_layer& network, Replica& replica, message::type certificate_type, std::string content) {
+    std::vector<message> collected_messages;
+    const std::size_t n = network.size();
+    const std::size_t f = (n - 1) / 3;
+    const std::size_t required_messages = n - f;
+
+    while (collected_messages.size() != required_messages) {
+        if(!network[replica.replica_id].empty())
+        {
+            message msg = network[replica.replica_id].pop_from_queue();
+            std::cout << "Popped Message from Leader Queue MSG Content : " << msg.content << "Sender ID : " << msg.sender_id << std::endl;
+            if (msg.msg_type == certificate_type && msg.view_number == replica.round_number && msg.content == content) {
+                collected_messages.push_back(msg);
+            }
+            else
+            {
+                
+                return ConsensusCertificate();
+            }
+        }
+        else
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+        }
+        // Additional checks and logic can be added as needed
+    }
+
+    return ConsensusCertificate(collected_messages);
+}
+
+bool receive_message(message& msg, size_t& leader_id, Replica& replica, message::type expected_type) {
+
+        if(msg.msg_type == expected_type                    && 
+           leader_id == msg.sender_id                       && 
+           msg.view_number == replica.round_number          &&
+           global_client_queue.front_of_queue() == msg.content)
+        {
+
+            return true;
+        }
+        return false;
+}
+
+
+/* Leader or round changes every second---we should not need to provide that. */
+void replica_thread_function_well_behaved(std::size_t replica_id, network_layer& network)
+{
+    // using enum Replica::State;
+    
+
     Replica replica;
+    // std::size_t leader_id = 1;
+    // if(replica.replica_id == leader_id){ //???
+    //    replica.is_leader = true;
+    // }
+    // std::cout << "replica is leader : " << replica.is_leader << "\n" ;
+    
+    replica.replica_id = replica_id;
     const std::size_t n = network.size();
     const std::size_t f = (n - 1) / 3;  // Assuming 'n' is at least '3f + 1'
 
-    // The quorum size is '2f + 1'
-    const std::size_t QC = 2 * f + 1;
-    safe_print("Replica " ,replica_id, " started.");
-	//std::size_t leader_id = replica.leader_id; // This should be updated as the view changes
-	 if (replica_id == l_id){
-		replica.is_leader = true;
-	 }
-	
-	if (replica.is_leader) {
-		// Simulate sending a proposal to all replicas to start the consensus process
-		std::string proposal_value = "Transaction1";
-		message proposal_msg(message::type::PROPOSE, proposal_value, l_id);
-		broadcast_message(network, proposal_msg);
+    const std::size_t QC = n - f;
+    std::cout << "Replica " << replica_id << " started." << std::endl;
+    //safe_print("Replica ", replica_id, " started.");
+    //std::size_t leader_id = replica.leader_id; // This should be updated as the view changes
 
-		// After broadcasting the proposal, set this replica's state to the next appropriate state
-		replica.state = Replica::State::PROPOSED;
-	}
+    replica.round_number = replica.round_number + 1;
 
-	while (true) {
-		message msg = network[replica_id]->pop_from_queue();
+    #if 0
+    //std::size_t leader_id = 1;
+    if (replica.is_leader) {
+        // Simulate sending a proposal to all replicas to start the consensus process
+        safe_print("view: ", replica.round_number, "has started");
+        std::string proposal_value = "Transaction1";
+        message proposal_msg(message::type::PREPARE, proposal_value, replica_id, replica.round_number);
+        broadcast_message(network, proposal_msg);
 
-		// Handle the message based on its type
-		//PREPARE PHASE:
-		switch (msg.msg_type) {
-			case message::type::PROPOSE: {
-				// If this is a leader's proposal and we're idle, move to prepared
-				if (replica.is_leader && replica.state == Replica::IDLE) {
-					replica.value = msg.content;
-					replica.state = Replica::PREPARED;
-					// Send a vote back to the leader
-					message vote_msg(message::type::VOTE, msg.content, replica_id);
-					network[l_id]->add_to_queue(vote_msg);
-				}
-				break;
-			}
-			case message::type::VOTE: {
-				// Leader collects votes from replicas
-				if (replica.is_leader && replica.state == Replica::PREPARED) {
-					replica.votes++;
-					// Check if we have reached quorum
-					if (replica.votes >= QC) {
-						replica.state = Replica::PRE_COMMITTED;
-						// Broadcast pre-commit message to all replicas
-						message pre_commit_msg(message::type::PRE_COMMIT, replica.value, replica_id);
-						broadcast_message(network, pre_commit_msg);
-                    }
-                }
-                break;
-            }
+        // After broadcasting the proposal, set this replica's state to the next appropriate state
+        replica.state = Replica::State::PREPARED;
+    }
+    #endif
 
-            //PRE-COMMIT PHASE:
-            case message::type::PRE_COMMIT: {
-                // Replicas receive pre-commit message
-				if (replica.is_leader && replica.state == Replica::PREPARED) {
-                    replica.state = Replica::COMMITTED;
-                    // Send commit vote back to the leader
-                    message commit_vote_msg(message::type::COMMIT, replica.value, replica_id);
-					network[l_id]->add_to_queue(commit_vote_msg);
-                }
-                break;
-            }
+    while (true) {
+#if 1 // disabled, to make it behave like comment.
 
-            //COMMIT PHASE
-            case message::type::COMMIT: {
-                // Leader collects commit votes
-                if (replica.is_leader && replica.state == Replica::PRE_COMMITTED) {
-                    replica.commit_votes++;
-                    // Check if we have reached quorum
-                    if (replica.commit_votes >= QC) {
-                        replica.state = Replica::DECIDED;
-                        // Broadcast decide message to all replicas
-                        message decide_msg(message::type::DECIDE, replica.value, replica_id);
-                        broadcast_message(network, decide_msg);
-                    }
-                }
-                break;
-            }
-            //DECIDE PHASE
-            case message::type::DECIDE: {
-                // Replicas execute the decided value
-				if (replica.is_leader && replica.state == Replica::COMMITTED) {
-                    replica.state = Replica::DECIDED;
-                    // Here the value is actually applied/executed
-                    // For example, updating a ledger or applying a state transition
-                }
-                break;
-            }
+        /* Maybe change to something like this: */
+        
 
-            case message::type::SYNC: {
-                // Handle synchronization logic
-                if (replica.state == Replica::SYNCING) {
-                // Process the sync message and update the state accordingly
-                sync_with_network(replica, network, replica_id);
-                }
-                break;
-            }
-
-            case message::type::NEW_VIEW: {
-                 // Handle the start of a new view
-                if (replica.state == Replica::VIEW_CHANGE) {
-                    // Process the new view message and update the state accordingly
-                    std::string new_leader_id = msg.content;
-                    start_new_view(replica, network, replica_id, new_leader_id);
-                }
-                break;
-            }
-
+        auto leader_id = replica.round_number % n;
+        
+        // std::cout << leader_id <<"\n";
+        if (replica.round_number % n == replica_id) {
+            std::cout << "Leader: " << replica.round_number % n << "\n";
+            auto request = global_client_queue.front_of_queue();
             
-            case message::type::STOP: {
-                end_of_round(replica, replica_id);
-                return; // Exit the thread loop
+            
+            
+            
+
+            std::cout << request << "\n";
+            // auto newv = receive_certificate(network, replica, message::type::NEW_VIEW, *request);
+
+                
+            if(request){
+                auto start = std::chrono::steady_clock::now();
+                if(replica.round_number != 0)
+                {
+                    auto vc = receive_certificate(network, replica, message::type::NEW_VIEW, *request);
+                    global_client_queue.pop_from_queue();
+
+                    while(global_client_queue.empty()) 
+                    {
+                        
+                    }
+                    request = global_client_queue.front_of_queue();
+
+                    if(!vc.is_valid())
+                    {
+                        // Call View Change
+                        start_new_view(
+                            replica,
+                            network,
+                            replica_id,
+                            replica.round_number+1
+                            );
+                    }
+                }
+
+                message proposal_msg(message::type::PREPARE, *request, replica_id, replica.round_number);
+                std::cout << "Primary has got a view change request." << std::endl;
+                broadcast_message(network, proposal_msg);
+                auto vc = receive_certificate(network, replica, message::type::PREPARE, *request);
+                if(!vc.is_valid())
+                {
+                    // Call View Change
+                    start_new_view(
+                        replica,
+                        network,
+                        replica_id,
+                        replica.round_number+1
+                        );
+                }
+
+                // receive_vote_Certificate can ignore all messages that are not proper vote messages: HotStuff is sequential.
+                message pre_commit_msg(message::type::PRE_COMMIT, request, replica.round_number % n, replica.round_number);
+                broadcast_message(network, pre_commit_msg);
+                vc = receive_certificate(network, replica, message::type::PRE_COMMIT, *request);
+                if(!vc.is_valid())
+                {
+                    // Call View Change
+                    start_new_view(
+                        replica,
+                        network,
+                        replica_id,
+                        replica.round_number+1
+                        );
+                }
+                std::cout << "Primary has validated PRE-COMMIT requests." << std::endl;
+                message commit_msg(message::type::COMMIT, request, replica.round_number % n, replica.round_number);
+                broadcast_message(network, commit_msg);
+                vc = receive_certificate(network, replica, message::type::COMMIT, *request);
+                if(!vc.is_valid())
+                {
+                    // Call View Change
+                    start_new_view(
+                        replica,
+                        network,
+                        replica_id,
+                        replica.round_number+1
+                        );
+                }
+                std::cout << "Primary has validated COMMIT requests." << std::endl;
+                message decide_msg(message::type::DECIDE, request, replica.round_number % n, replica.round_number);
+                broadcast_message(network, decide_msg);
+                replica.round_number = replica.round_number + 1;
+
+                auto end = std::chrono::steady_clock::now();
+                std::chrono::duration<double> elapsed_seconds = end - start;
+                std::cout << "Round time: " << elapsed_seconds.count() << "s\n";
+
+
+                
+            // I am the leader.
+            // auto newv = receive_certificate(network, replica, message::type::NEW_VIEW, request);
+            // try{
+            //     // auto request = global_client_queue.pop_from_queue();
+
+                
+            // }
+            // }
+            // catch (const std::exception& e) {
+
+            //     std:: cout << "Exception: ";
+            // } 
+            
+           
             }
-            //UNHANDLED--> Any other issue 
-            default: {
-                // Handle other message types or unknown messages
-                handle_unknown_message(msg, replica_id);
-                break;
+
             }
+        else {
+            /* Am not the leader, wait for proposal from leader. */
+            if(!network[replica_id].empty())
+            {
+                message msg = network[replica_id].pop_from_queue();
+                //safe_print("Message " , msg.content, "-", msg.sender_id , "\n");
+                //auto proposal = receive_certificate(network, replica, message::type::PREPARE, *msg.content);
+                
+
+                // Check for states and change accordingly
+                auto validMessageFromPrimary = receive_message(msg, leader_id, replica, message::type::PREPARE);
+                if(validMessageFromPrimary)
+                {    
+                    /* send vote for proposal to leader. */
+                    std::cout <<"R" << replica_id << " has validated the PREPARE request"<< std::endl;
+                    message pre_vote_msg(message::type::PREPARE, msg.content, replica_id, replica.round_number);
+                    network[leader_id].add_to_queue(pre_vote_msg);
+                }
+                else
+                {
+                    //start_new_view();
+                }
+                validMessageFromPrimary = receive_message(msg, leader_id, replica, message::type::PRE_COMMIT);
+                if(validMessageFromPrimary)
+                {    
+                    /* send vote for proposal to leader. */
+                    std::cout << "R" << replica_id << " has validated the PRE_COMMIT request"  << std::endl;
+                    message pre_vote_msg(message::type::PRE_COMMIT, msg.content, replica_id, replica.round_number);
+                    network[leader_id].add_to_queue(pre_vote_msg);
+                }
+                else
+                {
+                    //start_new_view();
+                }
+                validMessageFromPrimary = receive_message(msg, leader_id, replica, message::type::COMMIT);
+                if(validMessageFromPrimary)
+                {    
+                    /* send vote for proposal to leader. */
+                    std::cout << "R" << replica_id << " has validated the COMMIT request"<< std::endl;
+                    message pre_vote_msg(message::type::COMMIT, msg.content, replica_id, replica.round_number);
+                    network[leader_id].add_to_queue(pre_vote_msg);
+                }
+                else
+                {
+                    //start_new_view();
+                }
+                validMessageFromPrimary = receive_message(msg, leader_id, replica, message::type::DECIDE);
+                if(validMessageFromPrimary)
+                {    
+                    /* send vote for proposal to leader. */
+                    std::cout << "R" << replica_id << " has validated the DECIDE request"<< std::endl;
+                    std::cout << "Transaction is executed on R" << replica_id << std::endl;
+                    replica.round_number = replica.round_number + 1;
+                    leader_id = replica.round_number % n;
+                    message new_view_msg(message::type::NEW_VIEW, msg.content, replica_id, replica.round_number);
+                    network[leader_id].add_to_queue(new_view_msg);
+                
+                }
+            
+
+            }
+            else
+            {
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+            }
+            // auto proposal = receive_certificate(network, replica, message::type::PREPARE, message.content);
+            // /* send vote for proposal to leader. */
+            // message pre_vote_msg(message::type::PREPARE, request, replica_id, replica.round_number);
+            // network[leader_id].add_to_queue(pre_vote_msg);
+
+
+            // /* wait for vote certificate from leader. */
+            // auto vcc = receive_certificate(network, replica, message::type::PREPARE, request);
+            // /* send pre-commit for proposal to leader. */
+            // message pre_commit_vote(message::type::PRE_COMMIT_VOTE, request, replica_id, replica.round_number);
+            // network[leader_id].add_to_queue(pre_commit_vote);
+
+            // /* wait for pre-commit certificate from leader. */
+            // auto pccc = receive_certificate(network, replica, message::type::PRE_COMMIT, request);
+            //  /* send commit for proposal to leader. */
+            // message commit_vote(message::type::COMMIT, request, replica_id, replica.round_number);
+            // network[leader_id].add_to_queue(commit_vote);
+
+           
+            // /* wait for commit certificate from leader. */
+            // auto ccc = receive_certificate(network, replica, message::type::COMMIT, request);
         }
+        
+        
+#endif
+    
     }
 }
 
+
+
 // Main function to set up and run the simulation
 int main() {
-    std::cout << "hello world \n";
-    std::size_t nr = 4; // Number of replicas
-	std::size_t l_id = 0; // priamry id
+    const std::size_t nr = 4; // Number of replicas, is constant.
+    //const std::size_t leader_id = 1; ???
 
     std::vector<std::thread> replicas;
     network_layer queues(nr); // Initialize network layer with a number of replicas
 
+    #if JELLE_SAID_NO
+        /* The above line already makes @{nr} queues. */
     // Initialize the message queues for each replica
-	for (std::size_t i = 0; i < nr; ++i) {
+    for (std::size_t i = 0; i < nr; ++i) {
         queues[i] = std::make_shared<message_queue>();
     }
+    #endif
 
-	// set up different round
-	for (std::size_t r = 0; r < 3; ++r){
-		cout << "This is round:" << r;
-		// Start a thread for each replica for one round
-		for (std::size_t i = 0; i < nr; ++i) {
-			srand((unsigned)time(0)); 
-			int b;
-			b = (rand()%4)+0; 
-			if(i==b){
-				replicas.emplace_back(replica_thread_function_evil_behaved, i, std::ref(queues), l_id);
-			}else{
-				replicas.emplace_back(replica_thread_function_well_behaved, i, std::ref(queues), l_id);
-			}
-		}
-	l_id = l_id +1;  //Designate different primary_id in each round
-	}
+    global_client_queue.add_to_queue("T1");
+    global_client_queue.add_to_queue("T2");
+    global_client_queue.add_to_queue("T3");
+    global_client_queue.add_to_queue("T4");
+    
+    
+    for(std::size_t i = 0; i < 4; ++i){
+        #if JELLE_SAID_NO
+            /* lets make normal-case work first. */
+            if (i==0) {
+                // in this code replica 0 is bad replica
+                replicas.emplace_back(replica_thread_function_evil_behaved, i, std::ref(queues), 0, 1);
+            }
+            else {
+        #endif
+        replicas.emplace_back(replica_thread_function_well_behaved, i, std::ref(queues));
+    }
+        
     // Allow threads to start and set up
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100000));
 
     // Simulate sending a proposal to all replicas to start the consensus process
-    // message proposal_msg(message::type::PROPOSE, "Transaction1", 1); // Sender ID outside the range of replicas
-    // broadcast_message(queues, proposal_msg);
+  //  for (std::size_t i = 0; i < 100; ++i) {
+  //      message proposal_msg{
+  //          .msg_type = message::type::PROPOSE,
+  //          .content = "Transaction " + std::to_string(i),
+  //          .sender_id = 5, // outside the range of replicas: replicas are 0, 1, 2, 4.
+  //          .view_number = i // i-th transaction
+  //      };
+  //      (queues, proposal_msg);
+  //      std::this_thread::sleep_for(std::chrono::seconds(5));
+  //  }
 
-    // Allow some time for the replicas to process the proposal
-    std::this_thread::sleep_for(std::chrono::seconds(5));
 
     // Send a stop message to all replicas to end the simulation
-    for (auto& queue : queues) {
-        queue->add_to_queue(message(message::type::STOP, "", nr));
-    }
+    // message stop_msg {
+    //     .msg_type = message::type::STOP,
+    //     .content = "",
+    //     .sender_id = 5, // outside the range of replicas: replicas are 0, 1, 2, 4.
+    //     .view_number = 101 // after last transaction.
+    // };
 
-    // Wait for all threads to complete
-    for (auto& thread : replicas) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
+    //  message initial_proposal(message::type::NEW_VIEW, "NEW_VIEW", 0, 0);
+    //  queues[0].add_to_queue(initial_proposal);
 
-    return 0;
+    // broadcast_message(queues, stop_msg);
+
+
+
 }
